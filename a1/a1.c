@@ -8,76 +8,70 @@
 #include <stdlib.h>
 
 struct section{
-     char sect_name[9];
+    char sect_name[9];
     unsigned char sect_type;
     unsigned int sect_offset;
     unsigned int sect_size; 
 };
 
+struct Header{
+    unsigned char version;
+    struct section* sections;
+    unsigned char no_of_sections;
+    unsigned short header_size;
+};
+
 #define MAX_PATH 512
+
 int listLiniar(char * path, int condType, char* cond){
     DIR *dir = NULL;
     struct dirent *entry = NULL;
-    char filePath[512];
+    char fullPath[512];
     struct stat statbuf;
 
     dir = opendir(path);
     if(dir == NULL) {
-        perror("Could not open directory");
+        perror("ERROR");
+        printf("\ninvalid directory path");
         return -1;
     }
 
     printf("SUCCESS");
-    // read one-by-one dir entries until NULL returned
     while((entry = readdir(dir)) != NULL) {
-        // avoid "." and ".." as they are not useful
-        if(strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) {
-            //printf("%s\n", entry->d_name);
-            // build the complete path = dirpath + direntry’s name
-            snprintf(filePath, MAX_PATH, "%s/%s", path, entry->d_name);
+        if(strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) { //daca numele fisierului este diferit de .(folderul curent) si de ..(folderul parinte)
+            snprintf(fullPath, MAX_PATH, "%s/%s", path, entry->d_name); //cream path-ul complet din pathul directorului in care ne aflam si numele fisierului curent
 
-            if(lstat(filePath, &statbuf) == 0) {
+            if(lstat(fullPath, &statbuf) == 0) { //cream statbuf cu informatii despre fisier
 
-                if(condType == 0){
-                    printf("\n%s", filePath);
-                }
-                if(condType==1 ){
-                    int sem = 1;
-                        int i = 0;
-                        while(i<256 && cond[i] != 0 && entry->d_name[i] != 0 && sem){
-                            if(cond[i] != entry->d_name[i]){
-                                sem = 0;
-                            }
-                            i++;
+                if(condType == 0){// condType=0 ==> fara filtre
+                        printf("\n%s", fullPath);
+                } else {
+                    if(condType==1 ){
+                        if((strstr(entry->d_name, cond) == &entry->d_name[0] && strlen(entry->d_name) >= strlen(cond)) ){// daca strstr returneaza pointer la inceputul numelui fisierului si dim sirului cautat este ,ai mica decat dimensiunea numelui fisierului
+                            printf("\n%s", fullPath);
                         }
-                        if (entry->d_name[i-1] == 0 && cond[i-1] != 0)
-                        {
-                            sem = 0;
-                        }
-                        
-                        if(sem){
-                            printf("\n%s", filePath);
-                        }
-                }
-                if(condType==2){
-                    int mode = 0;
-                    for(int i=0; i<9; i++){
-                        mode *=2;
-                        if(cond[i] == 'r' || cond[i] == 'w' || cond[i] == 'x'){
-                            mode ++;
-                        } else {
-                            if(cond[i] != '-'){
-                                perror("ERROR\nCaractere invalide la permisiuni");
+                    } else {
+                        if(condType==2){ //condType=2 ==> permissions
+                            int mode = 0;
+                            for(int i=0; i<9; i++){  //calculam valoarea permisiunilor primite ca argument si o comparam cu cea a fisierului
+                                mode *=2;
+                                if(cond[i] == 'r' || cond[i] == 'w' || cond[i] == 'x'){
+                                    mode ++;
+                                } else {
+                                    if(cond[i] != '-'){
+                                        perror("ERROR\nCaractere invalide la permisiuni");
+                                    }
+                                }
+                                if((statbuf.st_mode & 0777) == mode){
+                                    printf("\n%s", fullPath);
+                                }
                             }
                         }
                     }
-                    if((statbuf.st_mode & 0777) == mode){
-                        printf("\n%s", filePath);
-                    }
-                }
+                }     
             }
-            
         }
+        
     }   
     closedir(dir);
     return 0;
@@ -91,49 +85,43 @@ int listRecursive(char* path, int condType, char* cond){
 
     dir = opendir(path);
     if(dir == NULL) {
-        perror("ERROR \ninvalid directory path");
+        perror("ERROR\ninvalid directory path");
         return -1;
     }
     while((entry = readdir(dir)) != NULL) {
-        if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            snprintf(fullPath, 512, "%s/%s", path, entry->d_name);
-            if(lstat(fullPath, &statbuf) == 0) {
-                if(condType == 0){
+        if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) { //daca numele fisierului este diferit de .(folderul curent) si de ..(folderul parinte)
+            snprintf(fullPath, 512, "%s/%s", path, entry->d_name); //cream path-ul complet din pathul directorului in care ne aflam si numele fisierului curent
+            if(lstat(fullPath, &statbuf) == 0) { //cream statbuf cu informatii despre fisier
+
+                if(condType == 0){// condType=0 ==> fara filtre
                     printf("\n%s", fullPath);
-                }
-                if(condType==1 ){
-                    int sem = 1;
-                    int i = 0;
-                    while(i<256 && cond[i] != 0 && entry->d_name[i] != 0 && sem){
-                        if(cond[i] != entry->d_name[i]){
-                            sem = 0;
+                } else {
+                    if(condType==1 ){
+                        if((strstr(entry->d_name, cond) == &entry->d_name[0] && strlen(entry->d_name) >= strlen(cond)) ){// daca strstr returneaza pointer la inceputul numelui fisierului si dim sirului cautat este ,ai mica decat dimensiunea numelui fisierului
+                            printf("\n%s", fullPath);
                         }
-                        i++;
-                    }
-                    if (entry->d_name[i-1] == 0 && cond[i-1] != 0)
-                    {
-                        sem = 0;
-                    }
-                    
-                    if(sem){
-                        printf("\n%s", fullPath);
-                    }
-                }
-                if(condType==2){
-                    int mode = 0;
-                    for(int i=0; i<9; i++){
-                        mode *=2;
-                        if(cond[i] == 'r' || cond[i] == 'w' || cond[i] == 'x'){
-                            mode ++;
-                        } else {
-                            if(cond[i] != '-'){
-                                perror("ERROR\nCaractere invalide la permisiuni");
+                    } else {
+                        if(condType==2){ //condType=2 ==> permissions
+                            int mode = 0;
+                            for(int i=0; i<9; i++){  //calculam valoarea permisiunilor primite ca argument si o comparam cu cea a fisierului
+                                mode *=2;
+                                if(cond[i] == 'r' || cond[i] == 'w' || cond[i] == 'x'){
+                                    mode ++;
+                                } else {
+                                    if(cond[i] != '-'){
+                                        perror("ERROR\nCaractere invalide la permisiuni");
+                                    }
+                                }
+                            }
+                            if((statbuf.st_mode & 0777) == mode){
+                                printf("\n%s", fullPath);
                             }
                         }
                     }
+                    
                 }
                 
-                if(S_ISDIR(statbuf.st_mode)) {
+                if(S_ISDIR(statbuf.st_mode)) { //apelam recursiv daca fisierul curent este un director
                     listRecursive(fullPath, condType, cond);
                 }
             }
@@ -143,8 +131,10 @@ int listRecursive(char* path, int condType, char* cond){
     return 0;
 }
 
+
+
 void list(char* path, int recursive, int condType, char* cond){
-    if(recursive == 1){
+    if(recursive == 1){  //apelam functia de list potrivita in functie de parametrul recursive
         printf("SUCCESS");
         listRecursive(path, condType, cond);
         printf("\n");
@@ -153,154 +143,440 @@ void list(char* path, int recursive, int condType, char* cond){
     }
 }
 
-int parse(char* path){
-    int fd = open(path, O_RDONLY);
+
+
+struct Header * parse(char* path){ //functia de parse returneaza pointer la o structura header care contine toate datele din header
+    int fd = open(path, O_RDONLY);  //descidem fisierul
     if(-1 == fd){
         perror("nu se poate deschide fisierul");
-        return -1;
+        return NULL;
     }
-    lseek(fd, 0, SEEK_SET);
-    lseek(fd, -1, SEEK_END);
+    lseek(fd, -1, SEEK_END); //pozitionam cursorul la sfarsit pentru a putea citi magic-ul
     char magic;
-    if( read(fd, &magic, 1) != 1){
+    if( read(fd, &magic, 1) != 1){ //citim si verificam magic
         perror("ERROR\neroare la citirea din fisier -- magic");
         close(fd);
-        return -1;
+        return NULL;
     }
     if(magic != 'Q'){
         perror("ERROR\nwrong magic");
         close(fd);
-        return -1;
+        return NULL;
     }
 
-    short headerSize;
-    lseek(fd, -3, SEEK_END);
-    if(read(fd, &headerSize, 2) != 2){
+    struct Header* header = (struct Header*) malloc (sizeof(struct Header) * 1); // alocam spatiu pentru header
+
+    lseek(fd, -3, SEEK_END); //pozitionam cursorul pentru a putea citi header size
+    if(read(fd, &header->header_size , 2) != 2){  //citim header size
         perror("ERROR\neroare la citirea din fisier -- header size");
         close(fd);
-        return -1;
+        return NULL;
     }
-    lseek(fd, -1*headerSize, SEEK_END);
 
-    unsigned char version = 0;
-    if( read(fd, &version, 1) != 1){
+    lseek(fd, -1*header->header_size, SEEK_END); //pozitionam cursorul la inceputul headerului
+
+    if( read(fd, &header->version, 1) != 1){// citim si verificam versiunea
         perror("ERROR\neroare la citirea din fisier -- version");
         close(fd);
-        return -1;
+        return NULL;
     }
-    if(version < 113 || version > 163){
+    if(header->version < 113 || header->version > 163){
         perror("ERROR\nwrong version");
         close(fd);
-        return -1;
+        return NULL;
     }
 
-    unsigned char sectionsNo;
-    if( read(fd, &sectionsNo, 1) != 1){
+    if( read(fd, &header->no_of_sections, 1) != 1){ // citim si verificam numarul de sectiuni
         perror("ERROR\neroare la citirea din fisier -- no of sections");
         close(fd);
-        return -1;
+        return NULL;
     }
-    if(sectionsNo < 4 || sectionsNo > 10){
+    if(header->no_of_sections < 4 || header->no_of_sections > 10){
         perror("ERROR\nwrong sect_nr");
         close(fd);
+        return NULL;
+    }
+
+    header->sections = (struct section*) malloc (header->no_of_sections * sizeof(struct section)); // alocam spatiu pentru array-ul  structuri section in care tinem date despre sectiuni
+
+    for(int i = 0; i < header->no_of_sections; i++){ // pentru fiecare sectiune
+        if(read(fd, &header->sections[i].sect_name, sizeof(header->sections[i].sect_name)-1) != sizeof(header->sections[i].sect_name)-1){ //citim numele
+            perror("ERROR\neroare la citirea din fisier -- section name");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+
+        if( read(fd, &header->sections[i].sect_type, sizeof(header->sections[i].sect_type)) != 1){ //citim si verificam tipul
+            perror("ERROR\neroare la citirea din fisier -- section type");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+        if(header->sections[i].sect_type != 39 && header->sections[i].sect_type != 86){
+            perror("ERROR\nwrong sect_types");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+
+        if(read(fd, &header->sections[i].sect_offset, sizeof(header->sections[i].sect_offset)) != sizeof(header->sections[i].sect_offset)){ //citim offsetul
+            perror("ERROR\neroare la citirea din fisier -- section offset");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+
+        if(read(fd, &header->sections[i].sect_size, sizeof(header->sections[i].sect_size)) != sizeof(header->sections[i].sect_size)){ // citim dimensiunea
+            perror("ERROR\neroare la citirea din fisier -- section size");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+    }
+    
+    close(fd);
+    return header;
+}
+
+
+
+void print_parse(char * path){
+    struct Header* header = parse(path);
+    if(header != NULL){ // afisam datele necesare pentru 2.4 daca structura header s-a creat cu succes
+        printf("SUCCESS\nversion=%d\nnr_sections=%d\n", header->version, header->no_of_sections);
+        for(int i = 0; i < header->no_of_sections; i++){
+            header->sections[i].sect_name[8] = 0;
+            printf("section%d: %s %d %d\n", i+1, header->sections[i].sect_name, header->sections[i].sect_type, header->sections[i].sect_size);
+        }
+        free(header->sections); // dezalocam memoria
+        free(header);
+    }
+    return;
+}
+
+
+
+int extract(char* path, int sectionNr, int line){
+    int fd = open(path, O_RDONLY);  //deschidem fisierul
+    if(-1 == fd){
+        perror("ERROR\ninvalid file");
+        return -1;
+    }
+    if(line < 1 ){ // verificam ca nr liniei sa fie valid
+        perror("ERROR\ninvalid line");
+        return -1;
+    }
+    struct Header* header = parse(path); //aflam date despre fisier apeland functia parse
+    if(header == NULL){
+        perror("ERROR\ninvalid file");
+        free(header);
         return -1;
     }
 
-    struct section* sections = (struct section*) malloc (sectionsNo * sizeof(struct section));
-
-    
-
-
-    for(int i = 0; i < sectionsNo; i++){
-        if(read(fd, &sections[i].sect_name, sizeof(sections[i].sect_name)-1) != sizeof(sections[i].sect_name)-1){
-            perror("ERROR\neroare la citirea din fisier -- section name");
-            close(fd);
-            free(sections);
-            return -1;
-        }
-        if( read(fd, &sections[i].sect_type, sizeof(sections[i].sect_type)) != 1){
-            perror("ERROR\neroare la citirea din fisier -- section type");
-            close(fd);
-            free(sections);
-            return -1;
-        }
-        if(sections[i].sect_type != 39 && sections[i].sect_type != 86){
-            perror("ERROR\nwrong sect_types");
-            close(fd);
-            free(sections);
-            return -1;
-        }
-
-        if(read(fd, &sections[i].sect_offset, sizeof(sections[i].sect_offset)) != sizeof(sections[i].sect_offset)){
-            perror("ERROR\neroare la citirea din fisier -- section offset");
-            close(fd);
-            free(sections);
-            return -1;
-        }
-        if(read(fd, &sections[i].sect_size, sizeof(sections[i].sect_size)) != sizeof(sections[i].sect_size)){
-            perror("ERROR\neroare la citirea din fisier -- section size");
-            close(fd);
-            free(sections);
-            return -1;
-        }
+    if(sectionNr < 1 || sectionNr > header->no_of_sections){ //verificam numarul sectiunii sa fie valid
+        perror("ERROR\ninvalid section");
+        free(header->sections);
+        free(header);
+        return -1;
     }
 
-    printf("SUCCESS\nversion=%d\nnr_sections=%d\n", version, sectionsNo);
-    for(int i = 0; i < sectionsNo; i++){
-        sections[i].sect_name[8] = 0;
-        printf("section%d: %s %d %d\n", i+1, sections[i].sect_name, sections[i].sect_type, sections[i].sect_size);
+    lseek(fd, header->sections[sectionNr-1].sect_offset, SEEK_SET); //ne pozitionam la inceputul sectiunii
+    char* buff = (char*) malloc (sizeof(char) * header->sections[sectionNr-1].sect_size + 1);
+    buff[header->sections[sectionNr-1].sect_size] = 0;
+
+    if(read(fd, buff, header->sections[sectionNr-1].sect_size) != header->sections[sectionNr-1].sect_size){//citim datele din sectiune
+        perror("ERROR\neroare la citirea din fisier");
+        free(header->sections);
+        free(header);
+        free(buff);
+        return -1;
     }
-    
-    free(sections);
-    close(fd);
+
+    int i = header->sections[sectionNr-1].sect_size - 1; //incepe sa citim de la sfarsitul buff spre inceput pana cand gasim un nr de (line-1) caractere '\n'-new line 
+    while( i >= 0 && line > 1){
+        if(buff[i] == '\n'){
+            line--;
+        }
+        i--;
+    }
+    if(i < 0 || line > 1){ //verificam daca nr de linii dat ca input nu este mami mare decat numarul de linii al sectiunii
+        perror("ERROR\ninvalid line");
+        free(header->sections);
+        free(header);
+        free(buff);
+        return -1;
+    }
+    printf("SUCCESS\n"); //afisam linia de la sfarsit spre inceput caracter cu caracter
+    while( i >= 0 && buff[i] != '\n'){
+        printf("%c", buff[i]);
+        i--;
+    }
+    printf("\n");
+
+    free(header->sections);
+    free(header);
+    free(buff);
     return 0;
 }
 
+struct Header * parseWithoutPErrors(char* path){ //functia de parse returneaza pointer la o structura header care contine toate datele din header
+    int fd = open(path, O_RDONLY);  //descidem fisierul
+    if(-1 == fd){
+        //perror("nu se poate deschide fisierul");
+        return NULL;
+    }
+    lseek(fd, -1, SEEK_END); //pozitionam cursorul la sfarsit pentru a putea citi magic-ul
+    char magic;
+    if( read(fd, &magic, 1) != 1){ //citim si verificam magic
+        //perror("ERROR\neroare la citirea din fisier -- magic");
+        close(fd);
+        return NULL;
+    }
+    if(magic != 'Q'){
+        //perror("ERROR\nwrong magic");
+        close(fd);
+        return NULL;
+    }
+
+    struct Header* header = (struct Header*) malloc (sizeof(struct Header) * 1); // alocam spatiu pentru header
+
+    lseek(fd, -3, SEEK_END); //pozitionam cursorul pentru a putea citi header size
+    if(read(fd, &header->header_size , 2) != 2){  //citim header size
+        //perror("ERROR\neroare la citirea din fisier -- header size");
+        close(fd);
+        return NULL;
+    }
+
+    lseek(fd, -1*header->header_size, SEEK_END); //pozitionam cursorul la inceputul headerului
+
+    if( read(fd, &header->version, 1) != 1){// citim si verificam versiunea
+        //perror("ERROR\neroare la citirea din fisier -- version");
+        close(fd);
+        return NULL;
+    }
+    if(header->version < 113 || header->version > 163){
+        //perror("ERROR\nwrong version");
+        close(fd);
+        return NULL;
+    }
+
+    if( read(fd, &header->no_of_sections, 1) != 1){ // citim si verificam numarul de sectiuni
+        //perror("ERROR\neroare la citirea din fisier -- no of sections");
+        close(fd);
+        return NULL;
+    }
+    if(header->no_of_sections < 4 || header->no_of_sections > 10){
+        //perror("ERROR\nwrong sect_nr");
+        close(fd);
+        return NULL;
+    }
+
+    header->sections = (struct section*) malloc (header->no_of_sections * sizeof(struct section)); // alocam spatiu pentru array-ul  structuri section in care tinem date despre sectiuni
+
+    for(int i = 0; i < header->no_of_sections; i++){ // pentru fiecare sectiune
+        if(read(fd, &header->sections[i].sect_name, sizeof(header->sections[i].sect_name)-1) != sizeof(header->sections[i].sect_name)-1){ //citim numele
+            //perror("ERROR\neroare la citirea din fisier -- section name");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+
+        if( read(fd, &header->sections[i].sect_type, sizeof(header->sections[i].sect_type)) != 1){ //citim si verificam tipul
+            ///perror("ERROR\neroare la citirea din fisier -- section type");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+        if(header->sections[i].sect_type != 39 && header->sections[i].sect_type != 86){
+            //perror("ERROR\nwrong sect_types");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+
+        if(read(fd, &header->sections[i].sect_offset, sizeof(header->sections[i].sect_offset)) != sizeof(header->sections[i].sect_offset)){ //citim offsetul
+            //perror("ERROR\neroare la citirea din fisier -- section offset");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+
+        if(read(fd, &header->sections[i].sect_size, sizeof(header->sections[i].sect_size)) != sizeof(header->sections[i].sect_size)){ // citim dimensiunea
+            //perror("ERROR\neroare la citirea din fisier -- section size");
+            close(fd);
+            free(header->sections);
+            free(header);
+            return NULL;
+        }
+    }
+    
+    close(fd);
+    return header;
+}
+
+
+int getLineNr(char* buff, unsigned int size){ //afla numarul de linii dintr-un array de caractere
+    int lines = 1;
+    for(int i = 0; i < size; i++){
+        if(buff[i] == '\n'){  //daca am gasit caracterul new line, incrementam lines
+            lines++;
+        }
+    }
+    return lines;
+}
+
+int findall(char* path, int time){
+    DIR *dir = NULL;
+    struct dirent *entry = NULL;
+    char fullPath[512];
+    struct stat statbuf;
+
+    dir = opendir(path);
+    if(dir == NULL) {
+        perror("ERROR\ninvalid directory path");
+        return -1;
+    }
+    while((entry = readdir(dir)) != NULL) {
+        if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) { //daca numele fisierului este diferit de .(folderul curent) si de ..(folderul parinte)
+            snprintf(fullPath, 512, "%s/%s", path, entry->d_name); //cream path-ul complet din pathul directorului in care ne aflam si numele fisierului curent
+            if(lstat(fullPath, &statbuf) == 0) { //cream statbuf cu informatii despre fisier
+                if(!S_ISDIR(statbuf.st_mode)){
+                    
+                    struct Header* header = parseWithoutPErrors(fullPath); //luam date despre fisier
+                    if(header == NULL){
+                        closedir(dir);
+                        return -1;
+                    }
+                    int fd = open(fullPath, O_RDONLY);  //descidem fisierul
+                    if(-1 == fd){
+                        perror("ERROR\nnu se poate deschide fisierul");
+                        free(header);
+                        closedir(dir);
+                        return -1;
+                    }
+                    int maxNrLinii = 0;
+                    int i = 0;
+                    while(i < header->no_of_sections && maxNrLinii < 14){  //cautam cat timp nu am parcurs toate sectiunile si nu am gasit una cu min 14 linii
+                        char * buff = (char*) calloc (sizeof(char) , header->sections[i].sect_size + 1);
+                        buff[header->sections[i].sect_size] = 0;
+                        lseek(fd, header->sections[i].sect_offset, SEEK_SET);
+                        if(read(fd, buff, header->sections[i].sect_size) != header->sections[i].sect_size){ //citim o sectiuna curenta in buff
+                            perror("ERROR");
+                            printf("Eroare la citirea din fisier2");
+                            free(header->sections);
+                            free(header);
+                            free(buff);
+                            close(fd);
+                            closedir(dir);
+                            return -1;
+                        }
+                        maxNrLinii = getLineNr(buff, header->sections[i].sect_size); //aflam numarul de linii pe care il contine
+                        //printf("%d -- ", maxNrLinii);
+                        i++;
+                        free(buff);
+                    }
+                    if(maxNrLinii >= 14){ //daca numarul maxim de linii gasite intr-o sectiune este min 14
+                        if(time == 0){
+                            printf("SUCCESS\n");
+                            time++;
+                        }
+                        printf("%s\n", fullPath);
+                    }
+                    close(fd);
+                    free(header->sections);
+                    free(header);
+                    
+                } else {
+                    if(S_ISDIR(statbuf.st_mode)) { //apelam recursiv daca fisierul curent este un director
+                        time++;
+                        findall(fullPath, time);
+                    }
+                }
+            }
+        }
+    }
+    closedir(dir);
+    return 0;
+}
+
+
+
 int main(int argc, char **argv){
     char* path = NULL;
+    char * function;
+    int sectionNr=0;
+    int lineNr=0;
     if(argc >= 2){
-        if(strcmp(argv[1], "variant") == 0){
-            printf("10917\n");
-            return 0;
-        } 
 
-        if(strcmp(argv[1], "list" ) == 0){
-            int recursive = 0;
-            char* cond = NULL;
-            int condType = 0;
-            for(int i = 2; i < argc; i++){
-                if(strcmp(argv[i], "recursive") == 0){
-                    recursive = 1;
-                } else {
-
+        int recursive = 0;
+        char* cond = NULL;  //stringul din argument care reprezinta filtrul
+        int condType = 0;
+        for(int i = 1; i < argc; i++){
             char * arg = strtok(argv[i], "=");
-                    if(strcmp(arg, "path") == 0){
-                        path = strtok(0, " ");
+            if(strcmp(arg, "recursive") == 0){ //verificam daca argumentul este cuvantul recursive
+                recursive = 1;
+            } else {
+                if(strcmp(arg, "path") == 0){ //verificam daca argumentul ne da un path si il stocam 
+                    path = strtok(0, " ");
+                } else {
+                    if(strcmp(arg, "name_starts_with") == 0){ //verificam daca argumentul este filtrul name_starts_with si il stocam
+                        condType = 1;
+                        cond = strtok(0, " ");
                     } else {
-                        if(strcmp(arg, "name_starts_with") == 0){
-                            condType = 1;
+                        if(strcmp(arg, "permissions") == 0){ //verificam daca argumentul este filtrul permissions si il stocam
+                            condType = 2;
                             cond = strtok(0, " ");
                         } else {
-                            if(strcmp(arg, "permissions") == 0){
-                                condType = 2;
-                                cond = strtok(0, " ");
+                            if(strcmp(arg, "section") == 0){ //verificam daca argumentul este numarul sectiunii
+                                sectionNr = atoi(strtok(0, " "));
+                            } else {
+                                if(strcmp(arg, "line") == 0){ //verificam daca argumentul este numarul liniei
+                                    lineNr = atoi(strtok(0, " "));
+                                } else {
+                                    function = arg;
+                                }
                             }
                         }
                     }
                 }
             }
-            list(path, recursive, condType, cond);
-        } 
-        char * function;
-        for(int i = 0; i < argc; i++){
-            if(strcmp(strtok(argv[i],"="), "path") == 0){
-                path = strtok(0, " ");
-            } else {
-                function = argv[i];
-            }
         }
-        if(strcmp(function, "parse") == 0){
-            parse(path);
+
+
+        if(strcmp(function, "variant") == 0){
+            printf("10917\n");
+            return 0;
+        } else {
+            if(strcmp(function, "list") == 0){
+                list(path, recursive, condType, cond);
+                return 0;
+            } else {
+                if(strcmp(function, "parse") == 0){
+                    print_parse(path);
+                    return 0;
+                } else {
+                    if(strcmp(function, "extract") == 0){
+                        extract(path, sectionNr, lineNr);
+                        return 0;
+                    } else {
+                        if(strcmp(function, "findall") == 0){
+                            //printf("SUCCESS");
+                            findall(path, 0);
+                            return 0;
+                        }
+                    }
+                }
+            }
         }
 
 
