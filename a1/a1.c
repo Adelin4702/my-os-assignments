@@ -77,11 +77,16 @@ int listLiniar(char * path, int condType, char* cond){
     return 0;
 }
 
-int listRecursive(char* path, int condType, char* cond){
+int listRecursive(char* path, int condType, char* cond, int* time){
     DIR *dir = NULL;
     struct dirent *entry = NULL;
     char fullPath[512];
     struct stat statbuf;
+    
+    if(time == 0){
+        printf("SUCCESS\n");
+        time++;
+    }
 
     dir = opendir(path);
     if(dir == NULL) {
@@ -122,7 +127,7 @@ int listRecursive(char* path, int condType, char* cond){
                 }
                 
                 if(S_ISDIR(statbuf.st_mode)) { //apelam recursiv daca fisierul curent este un director
-                    listRecursive(fullPath, condType, cond);
+                    listRecursive(fullPath, condType, cond, time);
                 }
             }
         }
@@ -136,7 +141,8 @@ int listRecursive(char* path, int condType, char* cond){
 void list(char* path, int recursive, int condType, char* cond){
     if(recursive == 1){  //apelam functia de list potrivita in functie de parametrul recursive
         printf("SUCCESS");
-        listRecursive(path, condType, cond);
+        int time = 0;
+        listRecursive(path, condType, cond, &time);
         printf("\n");
     } else {
         listLiniar(path, condType, cond);
@@ -148,7 +154,7 @@ void list(char* path, int recursive, int condType, char* cond){
 struct Header * parse(char* path){ //functia de parse returneaza pointer la o structura header care contine toate datele din header
     int fd = open(path, O_RDONLY);  //descidem fisierul
     if(-1 == fd){
-        printf("nu se poate deschide fisierul");
+        printf("ERROR\nnu se poate deschide fisierul");
         return NULL;
     }
     lseek(fd, -1, SEEK_END); //pozitionam cursorul la sfarsit pentru a putea citi magic-ul
