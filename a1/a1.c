@@ -313,9 +313,9 @@ int extract(char* path, int sectionNr, int line){
         return -1;
     }
 
-    int i = header->sections[sectionNr-1].sect_size - 1; //incepe sa citim de la sfarsitul buff spre inceput pana cand gasim un nr de (line-1) caractere '\n'-new line 
+    int i = header->sections[sectionNr-1].sect_size - 2; //incepe sa citim de la sfarsitul buff spre inceput pana cand gasim un nr de (line-1) caractere '\n'-new line 
     while( i >= 0 && line > 1){
-        if(buff[i] == '\n'){
+        if(buff[i] == 0x0D && buff[i+1] == 0x0A){
             line--;
         }
         i--;
