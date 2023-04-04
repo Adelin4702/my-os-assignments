@@ -43,7 +43,7 @@ int listLiniar(char * path, int condType, char* cond){
 
             if(lstat(fullPath, &statbuf) == 0) { //cream statbuf cu informatii despre fisier
 
-                if(condType == 0){// condType=0 ==> fara filtre
+                if(condType == 0){// condType=0 ==> fara filtre  
                         printf("\n%s", fullPath);
                 } else {
                     if(condType==1 ){
