@@ -312,28 +312,46 @@ int extract(char* path, int sectionNr, int line){
         close(fd);
         return -1;
     }
-
-    int i = header->sections[sectionNr-1].sect_size - 2; //incepe sa citim de la sfarsitul buff spre inceput pana cand gasim un nr de (line-1) caractere '\n'-new line 
-    while( i >= 0 && line > 1){
-        if(buff[i] == 0x0D && buff[i+1] == 0x0A){
-            line--;
+    if(line > 1){
+        int i = header->sections[sectionNr-1].sect_size - 2; //incepe sa citim de la sfarsitul buff spre inceput pana cand gasim un nr de (line-1) caractere '\n'-new line 
+        while( i >= 0 && line > 1){
+            if(buff[i] == 0x0D && buff[i+1] == 0x0A){
+                line--;
+            }
+            i--;
         }
+        if(line != 1){ //verificam daca nr de linii dat ca input nu este mami mare decat numarul de linii al sectiunii
+            printf("ERROR\ninvalid line");
+            free(header->sections);
+            free(header);
+            free(buff);
+            close(fd);
+            return -1;
+        } 
+        printf("SUCCESS\n"); //afisam linia de la sfarsit spre inceput caracter cu caracter
         i--;
+        while( i >= 0 && (buff[i] != 0x0D || buff[i+1] != 0x0A)){
+            printf("%c", buff[i+1]);
+            i--;
+        }
+        if(i == -1){
+            printf("%c", buff[0]);
+        }
+        printf("\n");
+
+    } else {   // daca linia este 1, tratam separat
+        int i = header->sections[sectionNr-1].sect_size - 2;
+        printf("SUCCESS\n"); //afisam linia de la sfarsit spre inceput caracter cu caracter
+        while( i >= 0 && (buff[i] != 0x0D || buff[i+1] != 0x0A)){
+            printf("%c", buff[i+1]);
+            i--;
+        }
+        if(i == -1){
+            printf("%c%c", buff[1], buff[0]);
+        }
+        printf("\n");
     }
-    if(i < 0 || line > 1){ //verificam daca nr de linii dat ca input nu este mami mare decat numarul de linii al sectiunii
-        printf("ERROR\ninvalid line");
-        free(header->sections);
-        free(header);
-        free(buff);
-        close(fd);
-        return -1;
-    }
-    printf("SUCCESS\n"); //afisam linia de la sfarsit spre inceput caracter cu caracter
-    while( i >= 0 && buff[i] != '\n'){
-        printf("%c", buff[i]);
-        i--;
-    }
-    printf("\n");
+    
 
     free(header->sections);
     free(header);
@@ -436,8 +454,8 @@ struct Header * parseWithoutprintfs(char* path){ //functia de parse returneaza p
 
 int getLineNr(char* buff, unsigned int size){ //afla numarul de linii dintr-un array de caractere
     int lines = 1;
-    for(int i = 0; i < size; i++){
-        if(buff[i] == '\n'){  //daca am gasit caracterul new line, incrementam lines
+    for(int i = 0; i < size-1; i++){
+        if(buff[i] == 0x0D && buff[i+1] == 0x0A){  //daca am gasit caracterul new line, incrementam lines
             lines++;
         }
     }
