@@ -255,111 +255,6 @@ struct Header * parse(char* path){ //functia de parse returneaza pointer la o st
     return header;
 }
 
-
-
-void print_parse(char * path){
-    struct Header* header = parse(path);
-    if(header != NULL){ // afisam datele necesare pentru 2.4 daca structura header s-a creat cu succes
-        printf("SUCCESS\nversion=%d\nnr_sections=%d\n", header->version, header->no_of_sections);
-        for(int i = 0; i < header->no_of_sections; i++){
-            header->sections[i].sect_name[8] = 0;
-            printf("section%d: %s %d %d\n", i+1, header->sections[i].sect_name, header->sections[i].sect_type, header->sections[i].sect_size);
-        }
-        free(header->sections); // dezalocam memoria
-        free(header);
-    }
-    return;
-}
-
-
-
-int extract(char* path, int sectionNr, int line){
-    int fd = open(path, O_RDONLY);  //deschidem fisierul
-    if(-1 == fd){
-        printf("ERROR\ninvalid file");
-        return -1;
-    }
-    if(line < 1 ){ // verificam ca nr liniei sa fie valid
-        printf("ERROR\ninvalid line");
-        close(fd);
-        return -1;
-    }
-    struct Header* header = parse(path); //aflam date despre fisier apeland functia parse
-    if(header == NULL){
-        printf("ERROR\ninvalid file");
-        close(fd);
-        free(header);
-        return -1;
-    }
-
-    if(sectionNr < 1 || sectionNr > header->no_of_sections){ //verificam numarul sectiunii sa fie valid
-        printf("ERROR\ninvalid section");
-        free(header->sections);
-        close(fd);
-        free(header);
-        return -1;
-    }
-
-    lseek(fd, header->sections[sectionNr-1].sect_offset, SEEK_SET); //ne pozitionam la inceputul sectiunii
-    char* buff = (char*) malloc (sizeof(char) * header->sections[sectionNr-1].sect_size + 1);
-    buff[header->sections[sectionNr-1].sect_size] = 0;
-
-    if(read(fd, buff, header->sections[sectionNr-1].sect_size) != header->sections[sectionNr-1].sect_size){//citim datele din sectiune
-        printf("ERROR\neroare la citirea din fisier");
-        free(header->sections);
-        free(header);
-        free(buff);
-        close(fd);
-        return -1;
-    }
-    if(line > 1){
-        int i = header->sections[sectionNr-1].sect_size - 2; //incepe sa citim de la sfarsitul buff spre inceput pana cand gasim un nr de (line-1) caractere '\n'-new line 
-        while( i >= 0 && line > 1){
-            if(buff[i] == 0x0D && buff[i+1] == 0x0A){
-                line--;
-            }
-            i--;
-        }
-        if(line != 1){ //verificam daca nr de linii dat ca input nu este mami mare decat numarul de linii al sectiunii
-            printf("ERROR\ninvalid line");
-            free(header->sections);
-            free(header);
-            free(buff);
-            close(fd);
-            return -1;
-        } 
-        printf("SUCCESS\n"); //afisam linia de la sfarsit spre inceput caracter cu caracter
-        i--;
-        while( i >= 0 && (buff[i] != 0x0D || buff[i+1] != 0x0A)){
-            printf("%c", buff[i+1]);
-            i--;
-        }
-        if(i == -1){
-            printf("%c", buff[0]);
-        }
-        printf("\n");
-
-    } else {   // daca linia este 1, tratam separat
-        int i = header->sections[sectionNr-1].sect_size - 2;
-        printf("SUCCESS\n"); //afisam linia de la sfarsit spre inceput caracter cu caracter
-        while( i >= 0 && (buff[i] != 0x0D || buff[i+1] != 0x0A)){
-            printf("%c", buff[i+1]);
-            i--;
-        }
-        if(i == -1){
-            printf("%c%c", buff[1], buff[0]);
-        }
-        printf("\n");
-    }
-    
-
-    free(header->sections);
-    free(header);
-    free(buff);
-    close(fd);
-    return 0;
-}
-
 struct Header * parseWithoutprintfs(char* path){ //functia de parse returneaza pointer la o structura header care contine toate datele din header
     int fd = open(path, O_RDONLY);  //descidem fisierul
     if(-1 == fd){
@@ -452,6 +347,171 @@ struct Header * parseWithoutprintfs(char* path){ //functia de parse returneaza p
 }
 
 
+void print_parse(char * path){
+    struct Header* header = parse(path);
+    if(header != NULL){ // afisam datele necesare pentru 2.4 daca structura header s-a creat cu succes
+        printf("SUCCESS\nversion=%d\nnr_sections=%d\n", header->version, header->no_of_sections);
+        for(int i = 0; i < header->no_of_sections; i++){
+            header->sections[i].sect_name[8] = 0;
+            printf("section%d: %s %d %d\n", i+1, header->sections[i].sect_name, header->sections[i].sect_type, header->sections[i].sect_size);
+        }
+        free(header->sections); // dezalocam memoria
+        free(header);
+    }
+    return;
+}
+
+
+
+int extract(char* path, int sectionNr, int line){
+    int fd = open(path, O_RDONLY);  //deschidem fisierul
+    if(-1 == fd){
+        printf("ERROR\ninvalid file");
+        return -1;
+    }
+    if(line < 1 ){ // verificam ca nr liniei sa fie valid
+        printf("ERROR\ninvalid line");
+        close(fd);
+        return -1;
+    }
+    struct Header* header = parseWithoutprintfs(path); //aflam date despre fisier apeland functia parse
+    if(header == NULL){
+        printf("ERROR\ninvalid file");
+        close(fd);
+        free(header);
+        return -1;
+    }
+
+    if(sectionNr < 1 || sectionNr > header->no_of_sections){ //verificam numarul sectiunii sa fie valid
+        printf("ERROR\ninvalid section");
+        free(header->sections);
+        close(fd);
+        free(header);
+        return -1;
+    }
+
+    lseek(fd, header->sections[sectionNr-1].sect_offset, SEEK_SET); //ne pozitionam la inceputul sectiunii
+    char* buff = (char*) malloc (sizeof(char) * header->sections[sectionNr-1].sect_size + 1);
+    buff[header->sections[sectionNr-1].sect_size] = 0;
+
+    if(read(fd, buff, header->sections[sectionNr-1].sect_size) != header->sections[sectionNr-1].sect_size){//citim datele din sectiune
+        printf("ERROR\neroare la citirea din fisier");
+        free(header->sections);
+        free(header);
+        free(buff);
+        close(fd);
+        return -1;
+    }
+    if(line > 1){
+        int i = header->sections[sectionNr-1].sect_size - 2; //incepe sa citim de la sfarsitul buff spre inceput pana cand gasim un nr de (line-1) caractere '\n'-new line 
+        while( i >= 0 && line > 1){
+            if(buff[i] == 0x0D && buff[i+1] == 0x0A){
+                line--;
+            }
+            i--;
+        }
+        if(line != 1){ //verificam daca nr de linii dat ca input nu este mami mare decat numarul de linii al sectiunii
+            printf("ERROR\ninvalid line");
+            free(header->sections);
+            free(header);
+            free(buff);
+            close(fd);
+            return -1;
+        } 
+        printf("SUCCESS\n"); //afisam linia de la sfarsit spre inceput caracter cu caracter
+        i--;
+        while( i >= 0 && (buff[i] != 0x0D || buff[i+1] != 0x0A)){
+            printf("%c", buff[i+1]);
+            i--;
+        }
+        if(i == -1){
+            printf("%c", buff[0]);
+        }
+        printf("\n");
+
+    } else {   // daca linia este 1, tratam separat
+        int i = header->sections[sectionNr-1].sect_size - 2;
+        printf("SUCCESS\n"); //afisam linia de la sfarsit spre inceput caracter cu caracter
+        while( i >= 0 && (buff[i] != 0x0D || buff[i+1] != 0x0A)){
+            printf("%c", buff[i+1]);
+            i--;
+        }
+        if(i == -1){
+            printf("%c%c", buff[1], buff[0]);
+        }
+        printf("\n");
+    }
+    
+
+    free(header->sections);
+    free(header);
+    free(buff);
+    close(fd);
+    return 0;
+}
+
+int extractWithoutPrintfs(char* path, int sectionNr, int line){
+    int fd = open(path, O_RDONLY);  //deschidem fisierul
+    if(-1 == fd){
+        return -1;
+    }
+    if(line < 1 ){ // verificam ca nr liniei sa fie valid
+        close(fd);
+        return -1;
+    }
+    struct Header* header = parseWithoutprintfs(path); //aflam date despre fisier apeland functia parse
+    if(header == NULL){
+        close(fd);
+        free(header);
+        return -1;
+    }
+
+    if(sectionNr < 1 || sectionNr > header->no_of_sections){ //verificam numarul sectiunii sa fie valid
+        free(header->sections);
+        close(fd);
+        free(header);
+        return -1;
+    }
+
+    lseek(fd, header->sections[sectionNr-1].sect_offset, SEEK_SET); //ne pozitionam la inceputul sectiunii
+    char* buff = (char*) malloc (sizeof(char) * header->sections[sectionNr-1].sect_size + 1);
+    buff[header->sections[sectionNr-1].sect_size] = 0;
+
+    if(read(fd, buff, header->sections[sectionNr-1].sect_size) != header->sections[sectionNr-1].sect_size){//citim datele din sectiune
+        free(header->sections);
+        free(header);
+        free(buff);
+        close(fd);
+        return -1;
+    }
+    if(line > 1){
+        int i = header->sections[sectionNr-1].sect_size - 2; //incepe sa citim de la sfarsitul buff spre inceput pana cand gasim un nr de (line-1) caractere '\n'-new line 
+        while( i >= 0 && line > 1){
+            if(buff[i] == 0x0D && buff[i+1] == 0x0A){
+                line--;
+            }
+            i--;
+        }
+        if(line != 1){ //verificam daca nr de linii dat ca input nu este mami mare decat numarul de linii al sectiunii
+            free(header->sections);
+            free(header);
+            free(buff);
+            close(fd);
+            return -1;
+        } 
+    } 
+    
+
+    free(header->sections);
+    free(header);
+    free(buff);
+    close(fd);
+    return 0;
+}
+
+
+
+
 int getLineNr(char* buff, unsigned int size){ //afla numarul de linii dintr-un array de caractere
     int lines = 1;
     for(int i = 0; i < size-1; i++){
@@ -485,45 +545,20 @@ int findall(char* path, int time){
                 if(!S_ISDIR(statbuf.st_mode)){
                     
                     struct Header* header = parseWithoutprintfs(fullPath); //luam date despre fisier
-                    if(header == NULL){
-                        closedir(dir);
-                        return -1;
-                    }
-                    int fd = open(fullPath, O_RDONLY);  //descidem fisierul
-                    if(-1 == fd){
-                        printf("ERROR\nnu se poate deschide fisierul");
-                        free(header);
-                        closedir(dir);
-                        return -1;
-                    }
-                    int maxNrLinii = 0;
-                    int i = 0;
-                    while(i < header->no_of_sections && maxNrLinii < 14){  //cautam cat timp nu am parcurs toate sectiunile si nu am gasit una cu min 14 linii
-                        char * buff = (char*) calloc (sizeof(char) , header->sections[i].sect_size + 1);
-                        buff[header->sections[i].sect_size] = 0;
-                        lseek(fd, header->sections[i].sect_offset, SEEK_SET);
-                        if(read(fd, buff, header->sections[i].sect_size) != header->sections[i].sect_size){ //citim o sectiuna curenta in buff
-                            printf("ERROR");
-                            printf("Eroare la citirea din fisier2");
-                            free(header->sections);
-                            free(header);
-                            free(buff);
-                            close(fd);
-                            closedir(dir);
-                            return -1;
+                    if(header != NULL){
+                        int i = 0;
+                        int ext = -1;
+                        while(i < header->no_of_sections && ext != 0){ //repetam atata timp cat mai exista sectiuni disponibile si cat nu am gasit o sectiune cu 15 linii
+                            ext = extractWithoutPrintfs(fullPath, i+1, 15);  //daca functia returneaza -1 pt sectiunea curenta => nu exista linia 15 in aceasta seciune; daca returneaza 0, exista
+                            i++;
                         }
-                        maxNrLinii = getLineNr(buff, header->sections[i].sect_size); //aflam numarul de linii pe care il contine
-                        i++;
-                        free(buff);
+                        if(ext == 0){ //daca exista linia 15 in minim o sectiune
+                            printf("%s\n", fullPath);
+                        }
+                        free(header->sections);
                     }
-                    if(maxNrLinii >= 14){ //daca numarul maxim de linii gasite intr-o sectiune este min 14
-                        printf("%s\n", fullPath);
-                    }
-                    
-                    close(fd);
-                    free(header->sections);
                     free(header);
-                    
+
                 } else {
                     if(S_ISDIR(statbuf.st_mode)) { //apelam recursiv daca fisierul curent este un director
                         time++;
@@ -544,6 +579,7 @@ int main(int argc, char **argv){
     char * function;
     int sectionNr=0;
     int lineNr=0;
+
     if(argc >= 2){
 
         int recursive = 0;
