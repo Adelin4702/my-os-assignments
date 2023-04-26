@@ -34,21 +34,22 @@ void* threadFn5(void * p){
             x++;
             pthread_cond_signal(param.cond);
         pthread_mutex_unlock(param.lock);
-
-        usleep(param.val * 700);
-        
+        usleep(param.val * 900);
         pthread_mutex_lock(param.lock);
-            //printf("\n                                %d threaduri\n", x);
-
+            printf("\n                                %d threaduri\n", x);
             if(param.val == 11){
                 while(x != 5) {
                     pthread_cond_wait(param.cond, param.lock);
                 }
+                info(END, param.proc, param.val);
+                pthread_mutex_unlock(param.lock);
+                sem_post(param.logSemN);
+                x--;
+                return NULL;
             }           
-
         pthread_mutex_unlock(param.lock);
-        
-        usleep(param.val * 700);
+
+        usleep(param.val * 900);
 
         pthread_mutex_lock(param.lock);
             pthread_cond_signal(param.cond);
@@ -59,7 +60,6 @@ void* threadFn5(void * p){
         info(END, param.proc, param.val);
         //x--;
     sem_post(param.logSemN);
-
     return NULL;
 }
 
