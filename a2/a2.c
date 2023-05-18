@@ -146,7 +146,7 @@ int main(){
                 perror("Error creating thread");
                 return -1;
             }
-        }       
+        }  
 
         p5 = fork();
         if(p5 == -1){
@@ -219,7 +219,6 @@ int main(){
                 }
             }
         }
-        
     }
     else {
 
