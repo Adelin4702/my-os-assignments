@@ -25,7 +25,6 @@ int creareaRegiuniiMemPartajata(unsigned int size){
     sharedMem = (volatile char *)mmap(0, size,
         PROT_READ | PROT_WRITE, MAP_SHARED, shmFd, 0);
     MemSize = size;
-    //shm_unlink(SH_MEM_NAME);
     return 0;
 }
 
@@ -53,11 +52,11 @@ int mapareFisier(char * fileName){
 
     map = (char*)mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fFisier, 0);
     if(map == (void*)-1) {
-        perror("Could not map file");
+        printf("Could not map file");
         close(fFisier);
         return 1;
     }
-    //close(fFisier); ???
+    close(fFisier);
     return 0;
 }
 
@@ -92,10 +91,6 @@ int citireDinSectiune(unsigned int section_nr, unsigned int offset, unsigned int
     index += 9; // offsetul ei
 
 
-    // if(index + 8 > fileSize){
-    //     return 1;
-    // }
-
     unsigned int sectOffset = ((((unsigned char)(map[index + 3]))* 256 * 256 * 256) & 0xff000000) + ((map[index + 2] * 256 * 256) & 0x00ff0000) +
                             ((map[index + 1] * 256) & 0x0000ff00) + (map[index] & 0x000000ff);
     unsigned int sSize = map[index + 7] * 256 * 256 * 256 + map[index + 6] * 256 * 256 +
@@ -119,38 +114,41 @@ int citesteDinSpatiulLogic(int logicalOffset, int bytesNr){
         return 1;
     }
 
-    unsigned int writingOffset = 0;
-
     unsigned int hSize = ((map[fileSize - 2] * 256) & 0xff00) +  (map[fileSize - 3] & 0x00ff);
     unsigned int index  = fileSize - hSize + 1;
     unsigned char nrSections = map[index++];
 
+    index = fileSize - hSize + 2;
+    unsigned int size = 0, sectOffset = 0;
     for(int i = 0; i < nrSections; i++){
-        index += 9;
-        unsigned int sectOffset = ((((unsigned char)(map[index + 3]))* 256 * 256 * 256) & 0xff000000) + ((map[index + 2] * 256 * 256) & 0x00ff0000) +
-                            ((map[index + 1] * 256) & 0x0000ff00) + (map[index] & 0x000000ff);
-        index += 4;
-        unsigned int sectSize = ((((unsigned char)(map[index + 3]))* 256 * 256 * 256) & 0xff000000) + ((map[index + 2] * 256 * 256) & 0x00ff0000) +
-                            ((map[index + 1] * 256) & 0x0000ff00) + (map[index] & 0x000000ff);
-        if(writingOffset % 4096 != 0){
-            writingOffset = ((writingOffset / 4096) + 1) * 4096;
-        }
-        for(int j = 0; j < sectSize; j++){
-            map[writingOffset + j] = map[sectOffset + j];
+        unsigned int sectSize = ((((unsigned char)(map[index + 3 + 13]))* 256 * 256 * 256) & 0xff000000) + ((map[index + 2 + 13] * 256 * 256) & 0x00ff0000) +
+                            ((map[index + 1 + 13] * 256) & 0x0000ff00) + (map[index + 13] & 0x000000ff);
+
+        if(logicalOffset >= size && logicalOffset < ((size + sectSize) / 4096 + 1)*4096 ){
+            sectOffset = ((((unsigned char)(map[index + 3 + 9]))* 256 * 256 * 256) & 0xff000000) + ((map[index + 2 + 9] * 256 * 256) & 0x00ff0000) +
+                        ((map[index + 1 + 9] * 256) & 0x0000ff00) + (map[index + 9] & 0x000000ff);
+            break;
+        } 
+        else 
+        {   
+            size = ((size + sectSize) / 4096 + 1) * 4096;
+            index += 17;
         }
     }
+    if(sectOffset == 0){
+        return 1;
+    }
 
+    sectOffset += logicalOffset - size;
     for(int i = 0; i < bytesNr; i++){
-        sharedMem[i] = map[logicalOffset + i];
+        sharedMem[i] = map[sectOffset + i];
     }
-
     return 0;
     
 }
 
 int main(int argc, char** argv)
 {
-    //unlink(WRITE_FIFO);
     int fRead = -1, fWrite = -1;
 
     if(mkfifo(WRITE_FIFO, 0600) != 0){
@@ -323,7 +321,7 @@ int main(int argc, char** argv)
                                         }
 
                                         char * s = "ERROR#";
-                                        if(citireDinFisierOffset(offset, nrBytes) == 0){
+                                        if(citesteDinSpatiulLogic(offset, nrBytes) == 0){
                                             s = "SUCCESS#";
                                         }
 
