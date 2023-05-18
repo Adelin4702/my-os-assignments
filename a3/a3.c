@@ -131,7 +131,11 @@ int citesteDinSpatiulLogic(int logicalOffset, int bytesNr){
         } 
         else 
         {   
-            size = ((size + sectSize) / 4096 + 1) * 4096;
+            if(sectSize % 4096 == 0){
+                size += sectSize;
+            } else {
+                size = ((size + sectSize) / 4096 + 1) * 4096;
+            }
             index += 17;
         }
     }
